@@ -4,6 +4,7 @@ const multer = require('multer');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { createClient } = require('@supabase/supabase-js');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -18,50 +19,37 @@ app.use(
 );
 
 // 2. CORS CONFIGURATION
-const allowedOrigins = [
-  'https://my-media-s4g1.onrender.com',
-  'http://localhost:3000',
-  'http://127.0.0.1:5500',
-  'http://localhost:5500'
-];
-
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Mobile / Web Client direct access support
-    }
-  },
+  origin: '*', // Production & Mobile client direct support
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
-app.use(express.static('public')); // Serve index.html if placed inside 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // 3. RATE LIMITING
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 300,
   message: { error: "Bohot saare requests bheje gaye hain. Kripya 15 minute baad try karein." }
 });
 
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 50,
   message: { error: "Upload limit exceed ho gayi hai. 15 minute baad dubara try karein." }
 });
 
 app.use('/api/', generalLimiter);
 
-// 4. SUPABASE INITIALIZATION
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// 4. SUPABASE INITIALIZATION (ENV Mismatch Fixed)
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const BUCKET_NAME = process.env.BUCKET_NAME || "my-media";
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("FATAL ERROR: Supabase environment variables configured nahi hain!");
+  console.error("FATAL ERROR: Supabase Environment Variables Missing!");
   process.exit(1);
 }
 
@@ -85,15 +73,15 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 25 * 1024 * 1024, // 25MB
+    fileSize: 25 * 1024 * 1024, // 25MB Max
     files: 5
   },
   fileFilter: fileFilter
 });
 
-// Root API Check
+// Root Health Check API
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Media Secure Backend API Running!' });
+  res.status(200).json({ status: 'ok', message: 'Media Backend API Running Perfectly!' });
 });
 
 // 6. UPLOAD API
@@ -139,12 +127,12 @@ app.post('/api/upload', uploadLimiter, (req, res) => {
 
     } catch (error) {
       console.error("Supabase Upload Error:", error.message);
-      res.status(500).json({ error: "File upload karne me internal error aaya." });
+      res.status(500).json({ error: "File upload karte waqt error aaya: " + error.message });
     }
   });
 });
 
-// 7. FEED API
+// 7. LIVE FEED API
 app.get('/api/feed', async (req, res) => {
   try {
     const { data, error } = await supabase.storage
@@ -156,8 +144,7 @@ app.get('/api/feed', async (req, res) => {
 
     if (error) throw error;
 
-    // Filter out hidden/system placeholder files
-    const validFiles = data.filter(item => item.name !== '.emptyFolderPlaceholder');
+    const validFiles = data.filter(item => item.name !== '.emptyFolderPlaceholder' && item.name !== '.keep');
 
     const feedItems = validFiles.map(item => {
       const { data: urlData } = supabase.storage
@@ -165,7 +152,7 @@ app.get('/api/feed', async (req, res) => {
         .getPublicUrl(item.name);
 
       return {
-        id: item.id,
+        id: item.id || item.name,
         name: item.name,
         url: urlData.publicUrl,
         created_at: item.created_at
@@ -176,13 +163,14 @@ app.get('/api/feed', async (req, res) => {
 
   } catch (error) {
     console.error("Feed Fetch Error:", error.message);
-    res.status(500).json({ error: "Feed fetch nahi ho paaya." });
+    res.status(500).json({ error: "Feed fetch nahi ho paaya: " + error.message });
   }
 });
 
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error("Unhandled Error:", err.stack);
-  res.status(500).json({ error: "Server me error aaya hai." });
+  res.status(500).json({ error: "Internal Server Error" });
 });
 
 app.listen(PORT, () => {
