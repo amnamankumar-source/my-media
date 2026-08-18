@@ -232,7 +232,9 @@
   </div>
 
   <script>
-    const API_BASE_URL = window.location.origin;
+    const API_BASE_URL = window.location.origin.includes("render.com") 
+      ? window.location.origin 
+      : "https://my-media-s4g1.onrender.com";
 
     function showFileName() {
       const fileInput = document.getElementById('fileInput');
