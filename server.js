@@ -52,7 +52,7 @@ app.use('/api/', generalLimiter);
 // 4. ENVIRONMENT VARIABLES VALIDATION
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
-const BUCKET_NAME = process.env.BUCKET_NAME || "media-files";
+const BUCKET_NAME = process.env.BUCKET_NAME || "my-media";
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.error("FATAL ERROR: Supabase environment variables configured nahi hain!");
