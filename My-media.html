@@ -3,10 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Social Media Feed</title>
-  
+  <title>Social Media Live Feed</title>
   <style>
-    /* PURE LIGHT MODE STYLING */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -210,63 +208,24 @@
       border-radius: 6px;
       font-size: 14px;
     }
-    
-/* ===== Header, Navbar, Sidebar, Blog Title Hide (Footer ko chhod ke) ===== */
-header, .header, #header, .Header, .header-widget,
-.navbar, nav, #navbar-iframe,
-#sidebar-wrapper, .sidebar, .sidebar-container,
-.blog-header, .header-inner, .header-section,
-.widget.Header, .site-title, .blog-title, .titlewrapper,
-h1.title, h1.header-title, h1, h2.header-title {
-  display: none !important;
-}
-  
-/* ===== Hide Previous/Next Post Links ===== */
-.blog-pager, .blog-pager-newer-link, .blog-pager-older-link, 
-#blog-pager-newer-link, #blog-pager-older-link, .post-nav, 
-.post-pagination, .pagenavi, .post-navigation, .nextprev, 
-.newer-posts, .older-posts, .nav-links, .single-navigation,
-.prev-post, .next-post, #blog-pager {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  opacity: 0 !important;
-}
-  
- 
-
-  /* 1. Developer ke asli footer ko invisible aur chota karne ke liye (No Redirect Bypass) */
-  #footer, .footer, #footer-wrapper, .site-footer {
-    background: #000000 !important;
-    height: 1px !important;
-    min-height: 1px !important;
-    overflow: hidden !important;
-    opacity: 0.01 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  #footer *, .footer *, #footer-wrapper *, .site-footer * {
-    color: #000000 !important;
-    font-size: 0px !important;
-    line-height: 0 !important;
-    pointer-events: none !important;
-  }
   </style>
 </head>
 <body>
 
   <div class="container">
     <header>
-      <h1>Social App Feed</h1>
+      <h1>Social Media Live Feed</h1>
     </header>
 
+    <!-- UPLOAD SECTION -->
     <div class="upload-card">
       <label for="fileInput" class="file-input-label">
-        📁 Select Photo, Video ya PDF (Ek ya Multiple)
+        📁 Select Photo, Video ya PDF (Ek ya multiple)
       </label>
       <input type="file" id="fileInput" accept="image/*,video/*,application/pdf" multiple onchange="showFileName()">
       <div id="fileName" class="file-name">Koi file select nahi hai</div>
 
+      <!-- PROGRESS BAR -->
       <div class="progress-container" id="progressContainer">
         <div class="progress-track">
           <div class="progress-fill" id="progressFill"></div>
@@ -274,17 +233,16 @@ h1.title, h1.header-title, h1, h2.header-title {
         <div class="progress-text" id="progressText">0%</div>
       </div>
 
-      <button class="upload-btn" onclick="uploadFiles()">Upload & Post</button>
+      <button class="upload-btn" onclick="startUploadProcess()">Upload & Post</button>
     </div>
 
-    <div class="feed-container" id="feedContainer">
-      <!-- Media posts dikhenge -->
-    </div>
+    <!-- FEED SECTION -->
+    <div class="feed-container" id="feedContainer"></div>
   </div>
 
   <script>
-    // Render API Base URL
-    const BASE_URL = "https://my-media-s4g1.onrender.com";
+    // Aapka Render Backend API Base URL
+    const API_BASE_URL = "https://my-media-s4g1.onrender.com";
 
     function showFileName() {
       const fileInput = document.getElementById('fileInput');
@@ -294,13 +252,13 @@ h1.title, h1.header-title, h1, h2.header-title {
       }
     }
 
-    // XHR Upload with 100% Progress Tracking
-    function uploadFiles() {
+    // Backend server par Secure multipart upload progress ke saath
+    function startUploadProcess() {
       const fileInput = document.getElementById('fileInput');
       const files = fileInput.files;
 
       if (files.length === 0) {
-        alert("Kripya pehle file select karein!");
+        alert("Kripya pehle kam se kam ek file select karein!");
         return;
       }
 
@@ -323,69 +281,68 @@ h1.title, h1.header-title, h1, h2.header-title {
         if (event.lengthComputable) {
           const percent = Math.round((event.loaded / event.total) * 100);
           progressFill.style.width = percent + '%';
-          progressText.innerText = percent + '% Complete';
+          progressText.innerText = `Uploading... ${percent}%`;
         }
       };
 
       xhr.onload = function () {
+        progressContainer.style.display = 'none';
         if (xhr.status === 200) {
-          const res = JSON.parse(xhr.responseText);
-          alert(res.message);
+          alert("Sabhi files successfully upload ho gayi!");
           fileInput.value = '';
           document.getElementById('fileName').innerText = 'Koi file select nahi hai';
-          progressContainer.style.display = 'none';
           fetchFeed();
         } else {
-          alert("Upload Fail ho gaya!");
-          progressContainer.style.display = 'none';
+          alert("Upload failed: " + xhr.responseText);
         }
       };
 
       xhr.onerror = function () {
-        alert("Server Connection Error!");
         progressContainer.style.display = 'none';
+        alert("Network Error: Backend API tak request nahi pahunch paaye.");
       };
 
-      xhr.open("POST", `${BASE_URL}/api/upload`, true);
+      xhr.open("POST", `${API_BASE_URL}/api/upload`, true);
       xhr.send(formData);
     }
 
-    // Fetch Posts Feed from Cloudflare R2
+    // Fetch and Render Feed across all devices
     async function fetchFeed() {
       const feedContainer = document.getElementById('feedContainer');
 
       try {
-        const response = await fetch(`${BASE_URL}/api/feed`);
+        const response = await fetch(`${API_BASE_URL}/api/feed`);
         const result = await response.json();
 
         if (!result.success) {
-          feedContainer.innerHTML = "<p style='text-align:center;'>Posts load nahi ho sake.</p>";
+          feedContainer.innerHTML = "<p style='text-align:center;'>Posts load nahi ho paaye.</p>";
           return;
         }
 
         feedContainer.innerHTML = "";
 
-        result.files.forEach(file => {
+        result.feed.forEach(item => {
+          const publicUrl = item.url;
           const card = document.createElement('div');
           card.className = 'post-card';
 
           let mediaHTML = '';
 
-          if (file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-            mediaHTML = `<div class="media-frame"><img src="${file.url}" alt="Image" loading="lazy"></div>`;
-          } else if (file.name.match(/\.(mp4|webm|ogg|mov)$/i)) {
-            mediaHTML = `<div class="media-frame"><video controls src="${file.url}"></video></div>`;
-          } else if (file.name.match(/\.(pdf)$/i)) {
+          if (item.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+            mediaHTML = `<div class="media-frame"><img src="${publicUrl}" alt="Post Image" loading="lazy"></div>`;
+          } else if (item.name.match(/\.(mp4|webm|ogg|mov)$/i)) {
+            mediaHTML = `<div class="media-frame"><video controls src="${publicUrl}"></video></div>`;
+          } else if (item.name.match(/\.(pdf)$/i)) {
             mediaHTML = `
               <div class="media-frame">
-                <iframe class="pdf-frame" src="${file.url}"></iframe>
+                <iframe class="pdf-frame" src="${publicUrl}"></iframe>
                 <div class="pdf-download-card">
                   <p>📄 <b>PDF Document</b></p>
-                  <a href="${file.url}" target="_blank">Full PDF Dekhein/Download Karein</a>
+                  <a href="${publicUrl}" target="_blank">Full PDF Open/Download Karein</a>
                 </div>
               </div>`;
           } else {
-            mediaHTML = `<div class="pdf-download-card"><a href="${file.url}" target="_blank">📁 File Download Karein</a></div>`;
+            mediaHTML = `<div class="pdf-download-card"><a href="${publicUrl}" target="_blank">📁 File Download Karein</a></div>`;
           }
 
           card.innerHTML = `
@@ -393,7 +350,7 @@ h1.title, h1.header-title, h1, h2.header-title {
               <div class="avatar">U</div>
               <div class="post-info">
                 <h4>User Post</h4>
-                <span>${new Date(file.lastModified).toLocaleString()}</span>
+                <span>${new Date(item.created_at).toLocaleString()}</span>
               </div>
             </div>
             ${mediaHTML}
@@ -402,13 +359,13 @@ h1.title, h1.header-title, h1, h2.header-title {
           feedContainer.appendChild(card);
         });
       } catch (err) {
-        feedContainer.innerHTML = "<p style='text-align:center;'>Server issue.</p>";
+        console.error("Feed error:", err);
       }
     }
 
-    // Auto Refresh Every 10 Seconds
+    // Initial fetch & Auto Sync every 5 seconds
     fetchFeed();
-    setInterval(fetchFeed, 10000);
+    setInterval(fetchFeed, 5000);
   </script>
 </body>
 </html>
