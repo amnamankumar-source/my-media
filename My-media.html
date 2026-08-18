@@ -217,7 +217,6 @@
       <h1>Social Media Live Feed</h1>
     </header>
 
-    <!-- UPLOAD SECTION -->
     <div class="upload-card">
       <label for="fileInput" class="file-input-label">
         📁 Select Photo, Video ya PDF (Ek ya multiple)
@@ -225,7 +224,6 @@
       <input type="file" id="fileInput" accept="image/*,video/*,application/pdf" multiple onchange="showFileName()">
       <div id="fileName" class="file-name">Koi file select nahi hai</div>
 
-      <!-- PROGRESS BAR -->
       <div class="progress-container" id="progressContainer">
         <div class="progress-track">
           <div class="progress-fill" id="progressFill"></div>
@@ -236,13 +234,13 @@
       <button class="upload-btn" onclick="startUploadProcess()">Upload & Post</button>
     </div>
 
-    <!-- FEED SECTION -->
     <div class="feed-container" id="feedContainer"></div>
   </div>
 
   <script>
-    // Aapka Render Backend API Base URL
-    const API_BASE_URL = "https://my-media-s4g1.onrender.com";
+    const API_BASE_URL = window.location.origin.includes("render.com") 
+      ? window.location.origin 
+      : "https://my-media-s4g1.onrender.com";
 
     function showFileName() {
       const fileInput = document.getElementById('fileInput');
@@ -252,7 +250,6 @@
       }
     }
 
-    // Backend server par Secure multipart upload progress ke saath
     function startUploadProcess() {
       const fileInput = document.getElementById('fileInput');
       const files = fileInput.files;
@@ -293,7 +290,12 @@
           document.getElementById('fileName').innerText = 'Koi file select nahi hai';
           fetchFeed();
         } else {
-          alert("Upload failed: " + xhr.responseText);
+          try {
+            const errRes = JSON.parse(xhr.responseText);
+            alert("Upload failed: " + (errRes.error || xhr.responseText));
+          } catch(e) {
+            alert("Upload failed: " + xhr.responseText);
+          }
         }
       };
 
@@ -306,7 +308,6 @@
       xhr.send(formData);
     }
 
-    // Fetch and Render Feed across all devices
     async function fetchFeed() {
       const feedContainer = document.getElementById('feedContainer');
 
@@ -350,7 +351,7 @@
               <div class="avatar">U</div>
               <div class="post-info">
                 <h4>User Post</h4>
-                <span>${new Date(item.created_at).toLocaleString()}</span>
+                <span>${item.created_at ? new Date(item.created_at).toLocaleString() : 'Recently'}</span>
               </div>
             </div>
             ${mediaHTML}
@@ -363,9 +364,8 @@
       }
     }
 
-    // Initial fetch & Auto Sync every 5 seconds
     fetchFeed();
-    setInterval(fetchFeed, 5000);
+    setInterval(fetchFeed, 10000);
   </script>
 </body>
 </html>
